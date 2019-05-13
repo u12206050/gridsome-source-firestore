@@ -1,14 +1,14 @@
+const { firestore } = require('firebase-admin')
 const db = require('./db')
-const getSlug = require('speakingurl')
 
 const isDev = process.env.NODE_ENV === 'development'
 
 function docData(doc, parent = null) {
   return {
     data: doc.data(),
-    __key__: doc.id,
-    __ref__: doc.ref,
-    __parent__: parent,
+    id: doc.id,
+    ref: doc.ref,
+    parent: parent,
   }
 }
 
@@ -23,21 +23,31 @@ class FirestoreSource {
   constructor (api, options = {}) {
     if (!Array.isArray(options.collections) || !options.collections.length) throw new Error('At least one collection is required')
 
-    this.contentTypes = {}
+    this.cTypes = {}
 
     api.loadSource(async (store) => {
-      await this.createContentTypes(store, options.collections)
+      this.store = store
+      await this.processCollections(options.collections)
     })
   }
 
-  async createContentTypes (store, collections, parentDoc = null) {
+  async processCollections(collections, parentDoc = null) {
+    const { slugify, addContentType, getContentType, createReference } = this.store
 
-    this.collections.forEach((def) => {
-      console.log(`Fetching ${def.name}`)
+    await collections.forEach(async (colDef) => {
+      console.log(`Fetching ${colDef.name}`)
 
       // TODO: if isDev then subscribe to snapshots and update nodes accordingly
 
-      await let docs = def.ref.get().then(snap => {
+      let ref = (() => {
+        if (typeof colDef.ref === 'function') {
+          if (!parentDoc) console.log('No parent document exists to give to ref callback')
+          return colDef.ref(parentDoc)
+        }
+        return colDef.ref
+      })()
+
+      const docs = await ref.get().then(snap => {
         if (snap.size) return snap.docs.map(doc => docData(doc, parentDoc))
         else if (snap.exist) {
           isDocument = true
@@ -45,27 +55,35 @@ class FirestoreSource {
         }
         return null
       })
-      if (!docs) return null
+      if (!docs) {
+        console.log(`No nodes for ${colDef.name}`)
+        return null
+      }
 
       // Could be single document
       if (!Array.isArray(docs)) docs = [docs]
 
-      if (!def.skip) {
-        console.log(`Creating content type for ${def.name} with ${docs.length} nodes`)
-        const cType = this.contentTypes[def.name] = this.store.addContentType({
-          typeName: def.name
-        })
+      if (!colDef.skip) {
+        console.log(`Creating content type for ${colDef.name} with ${docs.length} nodes`)
+        if (!this.cTypes[colDef.name]) {
+          this.cTypes[colDef.name] = addContentType({
+            typeName: colDef.name,
+            route: `/${slugify(colDef.name)}/:slug`
+          })
+        }
+
+        const cType = getContentType(colDef.name)
 
         docs.forEach(doc => {
-          doc.data.id = this.getId(doc)
-          doc.data.path = this.getPath(doc)
-          cType.addNode(doc.data)
+          doc.data.id = this.getId(colDef.id, doc)
+          doc.data.path = this.getPath(colDef.slug, doc)
+          cType.addNode(this.normalizeField(doc.data))
         })
       }
 
-      if (Array.isArray(def.children)) {
-        docs.forEach(doc => {
-          await this.createContentTypes(store, def.children, doc)
+      if (Array.isArray(colDef.children)) {
+        await docs.forEach(async doc => {
+          await this.processCollections(colDef.children, doc)
         })
       }
     })
@@ -78,23 +96,54 @@ class FirestoreSource {
       console.warn(`Id field is falsy, using default instead`)
     }
 
-    return doc.__key__
+    return doc.id
   }
 
   getPath(slug, doc) {
     let path = (() => {
+      const { slugify } = this.store
       if (slug) {
-        if (typeof slug === 'function') return slug(doc, getSlug)
-        if (typeof slug === 'string' && doc.data[slug]) return getSlug(doc.data[slug])
+        if (typeof slug === 'function') return slug(doc, slugify)
+        if (typeof slug === 'string' && doc.data[slug]) return slugify(doc.data[slug])
         console.warn(`Slug field is falsy, trying default instead`)
       }
 
-      if (doc.data.slug) return getSlug(doc.data.slug)
-      return doc.__key__
+      if (doc.data.slug) return slugify(doc.data.slug)
+      return doc.id
     })()
 
     if (path[0] !== '/') return `/${path}`
     return path
+  }
+
+  normalizeField(field) {
+    if (!field) return field
+    switch (typeof field) {
+      case "string":
+      case "number":
+      case "boolean": return field
+      case "object":
+        if (field.constructor) {
+          switch (field.constructor) {
+            case Date: return field
+            case firestore.Timestamp: return field.toDate()
+            case firestore.GeoPoint: return {
+              lat: field.latitude,
+              long: field.longitude
+            }
+            case firestore.DocumentReference:
+              console.warn('DocumentReference fields are not supported yet')
+              return null
+          }
+        }
+
+        const tmp = {}
+        Object.keys(field).forEach(p => {
+          if (field.hasOwnProperty(p))
+            tmp[p] = this.normalizeField(field[p])
+        })
+        return tmp
+    }
   }
 }
 

@@ -1,6 +1,4 @@
-const firebase = require('firebase')
-
-const isDev = process.env.NODE_ENV === 'development'
+const admin = require('firebase-admin')
 
 const CONFIG = {
   apiKey: process.env.GRIDSOME_API_KEY,
@@ -10,10 +8,7 @@ const CONFIG = {
 
 if (!CONFIG.apiKey || !CONFIG.databaseURL || !CONFIG.projectId) throw new Error('Require GRIDSOME_API_KEY, GRIDSOME_DATABASE_URL & GRIDSOME_PROJECT_ID')
 
-firebase.initializeApp(CONFIG)
-const db = firebase.firestore()
+admin.initializeApp(CONFIG)
+const db = admin.firestore()
 
-// Enable persistance to subscribe while developing
-if (isDev) db.enablePersistence()
-
-module.exports db
+module.exports = db

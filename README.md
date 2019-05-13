@@ -62,7 +62,7 @@ Property | Example
 ---|---
 `name` | Topic **src/templates/Topic.vue**
 `ref` | `db.collection('topics').where('active', '==', true)`
-`ref` in child | `(parentDoc) => { return parentDoc.__ref__.collection('posts').limit(parentDoc.data.showLast || 10) }`
+`ref` in child | `(parentDoc) => { return parentDoc.ref.collection('posts').limit(parentDoc.data.showLast || 10) }`
 `id` | id
 `slug` | `(doc, asSlug) => { return '/topics/' + asSlug(doc.data.title)' }`
 `children` | `[...]`
@@ -74,10 +74,10 @@ Is an object sent on each callback with the following structure:
 
 Key | Info
 ---|---
-`__key__` | The key of the document
-`__ref__` | The FirestoreReference of the document
+`id` | The key of the document
+`ref` | The FirestoreReference of the document
 `data` | Data object containing all the fields and value of the document from Firestore
-`__parent__`? | If exists, is the Document with similar structure of the parent to the collection of this document
+`parent`? | If exists, is the Document with similar structure of the parent to the collection of this document
 
 ### asSlug
 

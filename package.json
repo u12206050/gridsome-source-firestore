@@ -21,7 +21,6 @@
   },
   "homepage": "https://github.com/u12206050/gridsome-source-firestore#readme",
   "dependencies": {
-    "firebase": "^6.0.2",
-    "speakingurl": "^14.0.1"
+    "firebase-admin": "^7.3.0"
   }
 }
