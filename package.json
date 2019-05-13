@@ -11,8 +11,10 @@
     "url": "git+https://github.com/u12206050/gridsome-source-firestore.git"
   },
   "keywords": [
-    "gridsome-source",
-    "gridsome-plugin"
+    "gridsome",
+    "gridsome-plugin",
+    "gridsome-source-plugin",
+    "firestore"
   ],
   "author": "Gerard Lamusse",
   "license": "ISC",
