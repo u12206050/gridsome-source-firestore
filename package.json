@@ -1,0 +1,27 @@
+{
+  "name": "gridsome-source-firestore",
+  "version": "1.0.0",
+  "description": "Gridsome Source Plugin to load data from Firebase's Firestore",
+  "main": "index.js",
+  "scripts": {
+    "test": "node test.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/u12206050/gridsome-source-firestore.git"
+  },
+  "keywords": [
+    "gridsome-source",
+    "gridsome-plugin"
+  ],
+  "author": "Gerard Lamusse",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/u12206050/gridsome-source-firestore/issues"
+  },
+  "homepage": "https://github.com/u12206050/gridsome-source-firestore#readme",
+  "dependencies": {
+    "firebase": "^6.0.2",
+    "speakingurl": "^14.0.1"
+  }
+}
