@@ -25,17 +25,18 @@ class FirestoreSource {
 
     this.cTypes = {}
 
-    api.loadSource(async (store) => {
+    api.loadSource((store) => {
       this.store = store
-      await this.processCollections(options.collections)
+      return this.processCollections(options.collections)
     })
   }
 
   async processCollections(collections, parentDoc = null) {
     const { slugify, addContentType, getContentType, createReference } = this.store
 
-    await collections.forEach(async (colDef) => {
-      console.log(`Fetching ${colDef.name}`)
+    await Promise.all(collections.map(async (colDef) => {
+      const cName = `Fire${colDef.name}`
+      console.log(`Fetching ${cName}`)
 
       // TODO: if isDev then subscribe to snapshots and update nodes accordingly
 
@@ -56,7 +57,7 @@ class FirestoreSource {
         return null
       })
       if (!docs) {
-        console.log(`No nodes for ${colDef.name}`)
+        console.log(`No nodes for ${cName}`)
         return null
       }
 
@@ -64,29 +65,32 @@ class FirestoreSource {
       if (!Array.isArray(docs)) docs = [docs]
 
       if (!colDef.skip) {
-        console.log(`Creating content type for ${colDef.name} with ${docs.length} nodes`)
-        if (!this.cTypes[colDef.name]) {
-          this.cTypes[colDef.name] = addContentType({
-            typeName: colDef.name,
-            route: `/${slugify(colDef.name)}/:slug`
+        console.log(`Creating content type for ${cName} with ${docs.length} nodes`)
+        if (!this.cTypes[cName]) {
+          this.cTypes[cName] = addContentType({
+            typeName: cName
           })
         }
 
-        const cType = getContentType(colDef.name)
+        const cType = getContentType(cName)
 
         docs.forEach(doc => {
-          doc.data.id = this.getId(colDef.id, doc)
-          doc.data.path = this.getPath(colDef.slug, doc)
-          cType.addNode(this.normalizeField(doc.data))
+          const node = this.normalizeField({
+            ...doc.data,
+            id: this.getId(colDef.id, doc),
+            route: this.getPath(colDef.slug, doc)
+          })
+          console.log(`${node.id}: ${node.route}`)
+          cType.addNode(node)
         })
       }
 
       if (Array.isArray(colDef.children)) {
-        await docs.forEach(async doc => {
+        await Promise.all(docs.map(async doc => {
           await this.processCollections(colDef.children, doc)
-        })
+        }))
       }
-    })
+    }))
   }
 
   getId(id, doc) {
@@ -146,5 +150,7 @@ class FirestoreSource {
     }
   }
 }
+
+FirestoreSource.db = db
 
 module.exports = FirestoreSource
