@@ -64,7 +64,7 @@ Property | Example
 `ref` | `db.collection('topics').where('active', '==', true)`
 `ref` in child | `(parentDoc) => { return parentDoc.ref.collection('posts').limit(parentDoc.data.showLast || 10) }`
 `id` | id
-`slug` | `(doc, asSlug) => { return '/topics/' + asSlug(doc.data.title)' }`
+`slug` | `(doc, slugify) => { return '/topics/' + slugify(doc.data.title)' }`
 `children` | `[...]`
 `skip`| true "**Must have specified children then**"
 
@@ -78,10 +78,6 @@ Key | Info
 `ref` | The FirestoreReference of the document
 `data` | Data object containing all the fields and value of the document from Firestore
 `parent`? | If exists, is the Document with similar structure of the parent to the collection of this document
-
-### asSlug
-
-Uses [speakingurl](https://pid.github.io/speakingurl/) to generate a slug according to the given string eg. "Apple & Pear!" -> `apple-and-pear`
 
 ## Page Queries
 

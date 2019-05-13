@@ -35,7 +35,7 @@ class FirestoreSource {
     const { slugify, addContentType, getContentType, createReference } = this.store
 
     await Promise.all(collections.map(async (colDef) => {
-      const cName = `Fire${colDef.name}`
+      const cName = colDef.name
       console.log(`Fetching ${cName}`)
 
       // TODO: if isDev then subscribe to snapshots and update nodes accordingly
