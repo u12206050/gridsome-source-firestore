@@ -1,6 +1,14 @@
 # Gridsome source Firestore
 Gridsome Source Plugin to load data from Firebase's Firestore
 
+**NOTE**: This is still in active development.
+
+TODO:
+
+  Implement reference nodes between parents
+
+  Implement reference nodes on DocumentReference Field
+
 ## Install
 
   `npm install gridsome-source-firestore`
@@ -58,6 +66,7 @@ Property | Type | Description
 `skip` | *optional* `Boolean` | If this is a parent and you don't want to generate content from it you can skip to not create nodes. Children collections will still be executed.
 
 **Examples**
+
 Property | Example
 ---|---
 `name` | Topic **src/templates/Topic.vue**
@@ -81,3 +90,27 @@ Key | Info
 
 ## Page Queries
 
+
+```
+query {
+  allTopic {
+    edges {
+      node {
+        title
+        description
+        image
+        route
+      }
+    }
+  }
+  allPost {
+    edges {
+      node {
+        title
+        body
+        image
+      }
+    }
+  }
+}
+```
