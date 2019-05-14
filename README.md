@@ -26,19 +26,7 @@ Within plugins in the `gridsome-config.js` file, you'll add the collections and 
 ```javascript:title=gridsome-config.js
 // gridsome-config.js
 
-const db = require('gridsome-source-firestore/db')
-
-const collections = [
-  {
-    ref: db.collection('topics'),
-    slug: (doc) => {
-      return `/topics/${doc.data.slug}`
-    }
-  },
-  {
-    ref: db.collection('posts').where('active', '==', true)
-  }
-]
+const { db } = require('gridsome-source-firestore')
 
 module.exports = {
   plugins: [
