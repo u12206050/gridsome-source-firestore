@@ -16,6 +16,7 @@ class FirestoreSource {
   // defaultOptions merged with this.options in App.vue
   static defaultOptions () {
     return {
+      debug: false,
       collections: []
     }
   }
@@ -23,30 +24,53 @@ class FirestoreSource {
   constructor (api, options = {}) {
     if (!Array.isArray(options.collections) || !options.collections.length) throw new Error('At least one collection is required')
 
+    this.verbose = options.debug
+    this.collections = options.collections
     this.cTypes = {}
 
     api.loadSource((store) => {
       this.store = store
-      return this.processCollections(options.collections)
+      return this.processCollections(this.collections)
     })
+  }
+
+  /* Capitalize string */
+  capitalize(colName) {
+    return colName.charAt(0).toUpperCase() + colName.slice(1)
+  }
+
+  /* Return the content  type name for the given collection name and optional segments */
+  typeName(colName, segments = []) {
+    let tName = 'Fire'
+
+    let segNames = []
+    segments && segments.forEach((seg, i) => {
+      if (!i % 2) segNames.push(this.capitalize(seg))
+    })
+    tName += segNames.reverse().join('')
+
+    tName += this.capitalize(colName)
+
+    return tName
   }
 
   async processCollections(collections, parentDoc = null) {
     const { slugify, addContentType, getContentType, createReference } = this.store
 
     await Promise.all(collections.map(async (colDef) => {
-      const cName = colDef.name
-      console.log(`Fetching ${cName}`)
 
       // TODO: if isDev then subscribe to snapshots and update nodes accordingly
 
       let ref = (() => {
         if (typeof colDef.ref === 'function') {
-          if (!parentDoc) console.log('No parent document exists to give to ref callback')
+          if (!parentDoc) console.warn('No parent document exists to give to ref callback')
           return colDef.ref(parentDoc)
         }
         return colDef.ref
       })()
+
+      const cName = this.typeName(ref._queryOptions.collectionId, ref._queryOptions.parentPath.segments)
+      this.verbose && console.log(`Fetching ${cName}`)
 
       const docs = await ref.get().then(snap => {
         if (snap.size) return snap.docs.map(doc => docData(doc, parentDoc))
@@ -56,6 +80,7 @@ class FirestoreSource {
         }
         return null
       })
+
       if (!docs) {
         console.log(`No nodes for ${cName}`)
         return null
@@ -77,10 +102,11 @@ class FirestoreSource {
         docs.forEach(doc => {
           const node = this.normalizeField({
             ...doc.data,
-            id: this.getId(colDef.id, doc),
-            route: this.getPath(colDef.slug, doc)
-          })
-          console.log(`${node.id}: ${node.route}`)
+            id: doc.id,
+            route: this.getPath(colDef.slug, doc),
+            _parent: parentDoc ? parentDoc.ref : null
+          }, '_')
+          this.verbose && console.log(`${node.id}: ${node.route}`)
           cType.addNode(node)
         })
       }
@@ -91,16 +117,6 @@ class FirestoreSource {
         }))
       }
     }))
-  }
-
-  getId(id, doc) {
-    if (id) {
-      if (typeof id === 'function') return id(doc)
-      if (typeof id === 'string' && doc.data[id]) return doc.data[id]
-      console.warn(`Id field is falsy, using default instead`)
-    }
-
-    return doc.id
   }
 
   getPath(slug, doc) {
@@ -120,7 +136,7 @@ class FirestoreSource {
     return path
   }
 
-  normalizeField(field) {
+  normalizeField(field, name) {
     if (!field) return field
     switch (typeof field) {
       case "string":
@@ -136,15 +152,14 @@ class FirestoreSource {
               long: field.longitude
             }
             case firestore.DocumentReference:
-              console.warn('DocumentReference fields are not supported yet')
-              return null
+              return this.store.createReference(this.typeName('', field._path.segments), field.id)
           }
         }
 
         const tmp = {}
         Object.keys(field).forEach(p => {
           if (field.hasOwnProperty(p))
-            tmp[p] = this.normalizeField(field[p])
+            tmp[p] = this.normalizeField(field[p], p)
         })
         return tmp
     }
