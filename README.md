@@ -49,16 +49,16 @@ module.exports = {
         collections: [
           {
             ref: db.collection('topics'),
-            slug: (doc, asSlug) => {
-              return `/topics/${asSlug(doc.data.title)}`
+            slug: (doc, slugify) => {
+              return `/topics/${slugify(doc.data.title)}`
             },
             children: [
               {
                 ref: (parentDoc) => {
                   return parentDoc.ref.collection('posts')
                 },
-                slug: (doc, asSlug) => {
-                  return `/${asSlug(doc.data.title)}`
+                slug: (doc, slugify) => {
+                  return `/${slugify(doc.data.title)}`
                 },
               }
             ]
