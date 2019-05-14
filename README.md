@@ -32,7 +32,7 @@ module.exports = {
   plugins: [
     {
       use: 'gridsome-source-firestore',
-      debug: true // Default false
+      debug: true, // Default false
       options: {
         collections: [
           {
