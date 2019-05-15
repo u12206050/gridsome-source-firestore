@@ -1,6 +1,10 @@
 # Gridsome source Firestore
+
 Gridsome Source Plugin to load data from Firebase's Firestore
 
+  * Image urls on fields within documents are downloaded and optimized by Gridsome.
+
+  * Load collections and their sub-collections and access them via `_parent` and the `belongsTo` property
 
 ## Install
 
@@ -32,8 +36,10 @@ module.exports = {
   plugins: [
     {
       use: 'gridsome-source-firestore',
-      debug: true, // Default false
       options: {
+        debug: true, // Default false
+        ignoreImages: false, // Default false
+        imageDirectory: 'fg_images', // Default /fg_images
         collections: [
           {
             ref: db.collection('topics'),
@@ -101,7 +107,7 @@ query {
     edges {
       node {
         title
-        image
+        image (width: 800, height: 450)
         route
       }
     }
@@ -112,8 +118,12 @@ query {
       node {
         title
         body
-        author
+        author {
+          fullname
+          image (width: 200, height: 200)
+        }
         route
+        image (width: 800, height: 450)
         topic: _parent {
           title
         }

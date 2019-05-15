@@ -1,6 +1,12 @@
 const { firestore } = require('firebase-admin')
 const db = require('./db')
 
+const axios = require('axios')
+const fs = require('fs')
+const path = require('path')
+
+const ROOT = process.cwd()
+
 const isDev = process.env.NODE_ENV === 'development'
 
 function docData(doc, parent = null) {
@@ -12,25 +18,51 @@ function docData(doc, parent = null) {
   }
 }
 
+function getFilename(url){
+  return url.replace(/%2F/g, '/').split('/').pop().replace(/\#(.*?)$/, '').replace(/\?(.*?)$/, '');
+}
+
+function downloadImage(url, image_path) {
+  return axios({
+    url: url,
+    responseType: 'stream',
+  }).then(response => {
+    response.data.pipe(fs.createWriteStream(image_path));
+
+    return {
+      status: true,
+      error: '',
+    };
+  }).catch(error => ({
+    status: false,
+    error: 'Error: ' + error.message,
+  }));
+}
+
 class FirestoreSource {
   // defaultOptions merged with this.options in App.vue
   static defaultOptions () {
     return {
       debug: false,
+      ignoreImages: false,
+      imageDirectory: 'fg_images',
       collections: []
     }
   }
 
-  constructor (api, options = {}) {
+  constructor (api, options = FirestoreSource.defaultOptions()) {
     if (!Array.isArray(options.collections) || !options.collections.length) throw new Error('At least one collection is required')
 
     this.verbose = options.debug
+    this.images = options.ignoreImages ? false : {}
+    this.imageDirectory = options.imageDirectory
     this.collections = options.collections
     this.cTypes = {}
 
-    api.loadSource((store) => {
+    api.loadSource(async (store) => {
       this.store = store
-      return this.processCollections(this.collections)
+      await this.processCollections(this.collections)
+      if (this.images) await this.downloadImages()
     })
   }
 
@@ -85,18 +117,19 @@ class FirestoreSource {
       if (!Array.isArray(docs)) docs = [docs]
 
       if (!docs.length) {
-        console.log(`No nodes for ${cName}`)
+        this.verbose && console.log(`No nodes for ${cName}`)
       }
 
       if (!colDef.skip) {
-        console.log(`Creating content type for ${cName} with ${docs.length} nodes`)
+        this.verbose && console.log(`Creating content type for ${cName} with ${docs.length} nodes`)
+
         if (!this.cTypes[cName]) {
           this.cTypes[cName] = addContentType({
             typeName: cName
           })
         }
 
-        const cType = getContentType(cName)
+        const cType = this.cTypes[cName]
 
         docs.forEach(doc => {
           const node = this.normalizeField({
@@ -116,6 +149,25 @@ class FirestoreSource {
         }))
       }
     }))
+  }
+
+  async downloadImages() {
+    const STATIC_DIR = path.join(ROOT, this.imageDirectory)
+
+    if (!fs.existsSync(STATIC_DIR)) fs.mkdirSync(STATIC_DIR)
+
+    await Object.keys(this.images).map(async (id) => {
+      const url = this.images[id]
+
+      let fileName = getFilename(url)
+      const filePath = path.join(STATIC_DIR, fileName)
+
+      if (!fs.existsSync(filePath)) {
+        this.verbose && console.log(`Downloading ${url}`)
+        await downloadImage(url, filePath)
+        this.verbose && console.log(`Downloaded ${fileName}`)
+      } else this.verbose && console.log(`${id} already exists ${fileName}`)
+    })
   }
 
   getPath(slug, doc) {
@@ -139,9 +191,18 @@ class FirestoreSource {
     if (!field) return field
     switch (typeof field) {
       case "string":
+        if (this.images && field.match(/^https:\/\/.*\/.*\.(jpg|png|svg|gif|jpeg)($|\?)/i)) {
+          const id = this.store.makeUid(getFilename(field))
+          if (!this.images[id]) this.images[id] = field
+
+          return path.join(ROOT, this.imageDirectory, getFilename(field))
+        }
       case "number":
       case "boolean": return field
       case "object":
+        if (Array.isArray(field)) {
+          return field.map(f => this.normalizeField(f, name))
+        }
         if (field.constructor) {
           switch (field.constructor) {
             case Date: return field
