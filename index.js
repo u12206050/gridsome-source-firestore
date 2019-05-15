@@ -78,16 +78,15 @@ class FirestoreSource {
           isDocument = true
           return docData(snap, parentDoc)
         }
-        return null
+        return []
       })
-
-      if (!docs) {
-        console.log(`No nodes for ${cName}`)
-        return null
-      }
 
       // Could be single document
       if (!Array.isArray(docs)) docs = [docs]
+
+      if (!docs.length) {
+        console.log(`No nodes for ${cName}`)
+      }
 
       if (!colDef.skip) {
         console.log(`Creating content type for ${cName} with ${docs.length} nodes`)
@@ -103,7 +102,7 @@ class FirestoreSource {
           const node = this.normalizeField({
             ...doc.data,
             id: doc.id,
-            route: this.getPath(colDef.slug, doc),
+            path: this.getPath(colDef.slug, doc),
             _parent: parentDoc ? parentDoc.ref : null
           }, '_')
           this.verbose && console.log(`${node.id}: ${node.route}`)
