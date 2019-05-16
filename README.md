@@ -6,6 +6,8 @@ Gridsome Source Plugin to load data from Firebase's Firestore
 
   * Load collections and their sub-collections and access them via `_parent` and the `belongsTo` property
 
+  * Live data updates from Firestore while you develop! `debug: true`
+
 ## Install
 
   `npm install gridsome-source-firestore`
@@ -37,7 +39,7 @@ module.exports = {
     {
       use: 'gridsome-source-firestore',
       options: {
-        debug: true, // Default false
+        debug: true, // Default false, should be true to enable live data updates
         ignoreImages: false, // Default false
         imageDirectory: 'fg_images', // Default /fg_images
         collections: [
