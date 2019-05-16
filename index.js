@@ -1,4 +1,5 @@
 const { firestore } = require('firebase-admin')
+const { each } = require('lodash')
 const db = require('./db')
 
 const axios = require('axios')
@@ -7,7 +8,7 @@ const path = require('path')
 
 const ROOT = process.cwd()
 
-const isDev = process.env.NODE_ENV === 'development'
+const ISDEV = process.env.NODE_ENV === 'development'
 
 function docData(doc, parent = null) {
   return {
@@ -53,6 +54,7 @@ class FirestoreSource {
   constructor (api, options = FirestoreSource.defaultOptions()) {
     if (!Array.isArray(options.collections) || !options.collections.length) throw new Error('At least one collection is required')
 
+    this.loadImages = false
     this.verbose = options.debug
     this.images = options.ignoreImages ? false : {}
     this.imageDirectory = options.imageDirectory
@@ -62,7 +64,7 @@ class FirestoreSource {
     api.loadSource(async (store) => {
       this.store = store
       await this.processCollections(this.collections)
-      if (this.images) await this.downloadImages()
+      if (this.images && this.loadImages) await this.downloadImages()
     })
   }
 
@@ -91,7 +93,7 @@ class FirestoreSource {
 
     await Promise.all(collections.map(async (colDef) => {
 
-      // TODO: if isDev then subscribe to snapshots and update nodes accordingly
+      // TODO: if ISDEV then subscribe to snapshots and update nodes accordingly
 
       let ref = (() => {
         if (typeof colDef.ref === 'function') {
@@ -106,10 +108,7 @@ class FirestoreSource {
 
       const docs = await ref.get().then(snap => {
         if (snap.size) return snap.docs.map(doc => docData(doc, parentDoc))
-        else if (snap.exist) {
-          isDocument = true
-          return docData(snap, parentDoc)
-        }
+        else if (snap.exist) return docData(snap, parentDoc)
         return []
       })
 
@@ -132,13 +131,7 @@ class FirestoreSource {
         const cType = this.cTypes[cName]
 
         docs.forEach(doc => {
-          const node = this.normalizeField({
-            ...doc.data,
-            id: doc.id,
-            path: this.getPath(colDef.slug, doc),
-            _parent: parentDoc ? parentDoc.ref : null
-          }, '_')
-          this.verbose && console.log(`${node.id}: ${node.route}`)
+          const node = this.createNode(doc, colDef.slug, parentDoc)
           cType.addNode(node)
         })
       }
@@ -148,7 +141,58 @@ class FirestoreSource {
           await this.processCollections(colDef.children, doc)
         }))
       }
+
+      /* Currently only able to watch and update top-level collections */
+      if (!colDef.skip && this.verbose && ISDEV) {
+        this.watch(ref, cName, colDef.slug, parentDoc)
+      }
     }))
+  }
+
+  createNode(doc, slug, parentDoc) {
+    const node = this.normalizeField({
+      ...doc.data,
+      id: doc.id,
+      path: this.getPath(slug, doc),
+      _parent: parentDoc ? parentDoc.ref : null
+    }, '_')
+    this.verbose && console.log(`${node.id}: ${node.path}`)
+
+    return node
+  }
+
+  async watch(ref, cName, slug, parentDoc) {
+    const cType = this.cTypes[cName]
+
+    let ids = []
+
+    const updateDoc = (doc) => {
+      let _d = docData(doc, parentDoc)
+      ids.push(_d.id)
+
+      const node = this.createNode(_d, slug, parentDoc)
+
+      if (cType.getNode(_d.id)) cType.updateNode(node)
+      else cType.addNode(node)
+    }
+
+    ref.onSnapshot(async snap => {
+      ids = []
+
+      if (snap.size) {
+        snap.docs.forEach(updateDoc)
+      } else if (snap.exist) {
+        updateDoc(snap)
+      }
+
+      cType.collection.mapReduce((node) => node.id, (arr) => {
+        arr.forEach(id => {
+          if (ids.indexOf(id) < 0) cType.removeNode(id)
+        })
+      })
+
+      if (this.loadImages) await this.downloadImages()
+    })
   }
 
   async downloadImages() {
@@ -168,6 +212,8 @@ class FirestoreSource {
         this.verbose && console.log(`Downloaded ${fileName}`)
       } else this.verbose && console.log(`${id} already exists ${fileName}`)
     })
+
+    this.loadImages = false
   }
 
   getPath(slug, doc) {
@@ -194,6 +240,8 @@ class FirestoreSource {
         if (this.images && field.match(/^https:\/\/.*\/.*\.(jpg|png|svg|gif|jpeg)($|\?)/i)) {
           const id = this.store.makeUid(getFilename(field))
           if (!this.images[id]) this.images[id] = field
+
+          this.loadImages = true
 
           return path.join(ROOT, this.imageDirectory, getFilename(field))
         }
