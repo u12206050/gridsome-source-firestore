@@ -1,6 +1,6 @@
 0.9.0 BREAKING CHANGES
 
-  * Now requires credentials instead of the enviroment variables
+  * Now requires credentials instead of the enviroment variables.
 
   * The callback function for the child `ref` property has been changed to include the `db` Firestore object. **OLD**: (parentDoc) => {} >>> **NEW**: (db, parentDoc?) => {}
 
