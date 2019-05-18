@@ -10,7 +10,7 @@ Gridsome Source Plugin to load data from Firebase's Firestore
 
 ## BREAKING CHANGES
 
-View the [changelog](./CHANGELOG.md) for any possible changes from previous versions.
+View the [changelog](https://github.com/u12206050/gridsome-source-firestore/blob/master/CHANGELOG.md) for any possible changes from previous versions.
 
 ## Install
 
