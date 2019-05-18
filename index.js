@@ -1,8 +1,9 @@
+const admin = require('firebase-admin')
 const { firestore } = require('firebase-admin')
-const { each } = require('lodash')
-const db = require('./db')
 
-const axios = require('axios')
+const { each } = require('lodash')
+
+const https = require('https')
 const fs = require('fs')
 const path = require('path')
 
@@ -24,26 +25,25 @@ function getFilename(url){
 }
 
 function downloadImage(url, image_path) {
-  return axios({
-    url: url,
-    responseType: 'stream',
-  }).then(response => {
-    response.data.pipe(fs.createWriteStream(image_path));
-
-    return {
-      status: true,
-      error: '',
-    };
-  }).catch(error => ({
-    status: false,
-    error: 'Error: ' + error.message,
-  }));
+  return new Promise((resolve, reject) => {
+    const file = fs.createWriteStream(image_path);
+    const request = https.get(url, (response) => {
+      response.pipe(file);
+      file.on('finish', () => {
+        file.close(resolve);
+      });
+    }).on('error', (err) => {
+      fs.unlink(dest);
+      throw new Error(err.message);
+    });
+  })
 }
 
 class FirestoreSource {
   // defaultOptions merged with this.options in App.vue
   static defaultOptions () {
     return {
+      credentials: null,
       debug: false,
       ignoreImages: false,
       imageDirectory: 'fg_images',
@@ -53,6 +53,7 @@ class FirestoreSource {
 
   constructor (api, options = FirestoreSource.defaultOptions()) {
     if (!Array.isArray(options.collections) || !options.collections.length) throw new Error('At least one collection is required')
+    if (!options.credentials) throw new Error('Firestore-source: Missing credentials')
 
     this.loadImages = false
     this.verbose = options.debug
@@ -60,6 +61,12 @@ class FirestoreSource {
     this.imageDirectory = options.imageDirectory
     this.collections = options.collections
     this.cTypes = {}
+
+    admin.initializeApp({
+      credential: admin.credential.cert(options.credentials)
+    })
+    const db = admin.firestore()
+    this.db = db
 
     api.loadSource(async (store) => {
       this.store = store
@@ -93,15 +100,8 @@ class FirestoreSource {
 
     await Promise.all(collections.map(async (colDef) => {
 
-      // TODO: if ISDEV then subscribe to snapshots and update nodes accordingly
-
-      let ref = (() => {
-        if (typeof colDef.ref === 'function') {
-          if (!parentDoc) console.warn('No parent document exists to give to ref callback')
-          return colDef.ref(parentDoc)
-        }
-        return colDef.ref
-      })()
+      if (typeof colDef.ref !== 'function') throw new Error('Ref should be callback instead. fn(db, parentDoc?)')
+      const ref = colDef.ref(this.db, parentDoc)
 
       const cName = this.typeName(ref._queryOptions.collectionId, ref._queryOptions.parentPath.segments)
       this.verbose && console.log(`Fetching ${cName}`)
@@ -207,10 +207,9 @@ class FirestoreSource {
       const filePath = path.join(STATIC_DIR, fileName)
 
       if (!fs.existsSync(filePath)) {
-        this.verbose && console.log(`Downloading ${url}`)
         await downloadImage(url, filePath)
         this.verbose && console.log(`Downloaded ${fileName}`)
-      } else this.verbose && console.log(`${id} already exists ${fileName}`)
+      } else this.verbose && console.log(`${fileName} already exists`)
     })
 
     this.loadImages = false
@@ -273,7 +272,5 @@ class FirestoreSource {
     }
   }
 }
-
-FirestoreSource.db = db
 
 module.exports = FirestoreSource

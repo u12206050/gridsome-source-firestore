@@ -8,22 +8,26 @@ Gridsome Source Plugin to load data from Firebase's Firestore
 
   * Live data updates from Firestore while you develop! `debug: true`
 
+## BREAKING CHANGES
+
+View the [changelog](./CHANGELOG.md) for any possible changes from previous versions.
+
 ## Install
 
   `npm install gridsome-source-firestore`
 
 ## Setup
 
-The source plugin requires at least the following variables from `Firebase` to exist in your `.env` file or `.env.development` and `.env.production` if you use those.
+Until Firestore receives support for handling custom service accounts, the only way is to download the Firebase AdminSDK service account credentials for your project. This does give the plugin full access to your Firebase.
 
-```env
-GRIDSOME_API_KEY=XXX
-GRIDSOME_DATABASE_URL=XXX
-GRIDSOME_PROJECT_ID=XXX
-```
+In order to build your site from another server, you'll also these credentials but: BE VERY CAREFUL HOW YOU TRANSPORT THEM! DO NOT PUSH THEM TO GITHUB OR ANY OTHER CODE REPOSITORY!
 
-The reason why we prefix it with `GRIDSOME_` is to allow you to use the variables on the client side as well if needed.
+### Set up Firebase AdminSDK service credentials
 
+1. Navigate to the [settings/serviceaccounts/adminsdk](https://console.firebase.google.com/u/0/project/_/settings/serviceaccounts/adminsdk) of your firebase project.
+2. Make sure `Firebase Admin SDK` is selected, and click `Generate new private key``
+3. Download the key and save it to the root of your project.
+4. For the saftey of everyone included this line in your `.gitignore` file: `*-firebase-adminsdk-*.json`
 
 ## Usage
 
@@ -39,18 +43,21 @@ module.exports = {
     {
       use: 'gridsome-source-firestore',
       options: {
+        credentials: require('./my-project-firebase-adminsdk-qw2123.json'), // Replace with your credentials file you downloaded.
         debug: true, // Default false, should be true to enable live data updates
         ignoreImages: false, // Default false
         imageDirectory: 'fg_images', // Default /fg_images
         collections: [
           {
-            ref: db.collection('topics'),
+            ref: (db) => {
+              return db.collection('topics')
+            },
             slug: (doc, slugify) => {
               return `/topics/${slugify(doc.data.title)}`
             },
             children: [
               {
-                ref: (parentDoc) => {
+                ref: (db, parentDoc) => {
                   return parentDoc.ref.collection('posts')
                 },
                 slug: (doc, slugify) => {
@@ -74,8 +81,8 @@ module.exports = {
 
 Property | Type | Description
 ---|---|---
-`ref` | `FirestoreReference`, `Function<Document>:FirestoreReference` | Optionally with filters, limits, order by etc. If `Function`, it is only allowed on children. Callback with the `parent` document as argument.
-`slug` | *optional* `String`, `Function<Document>:String` | Default is `slug` field. Otherwise name the field on the document to use. If `Function`: Callback function on each document. Return the value of the slug. eg. `/hello-world`
+`ref` | `Fn<Firestore, Document>` | Return `FirestoreReference` Optionally with filters, limits, order by etc. A callback function with the arguments `db` and `parentDoc` document as argument.
+`slug` | *optional* `String`, `Fn<Document>:String` | Default is `slug` field. Otherwise name the field on the document to use. If `Function`: Callback function on each document. Return the value of the slug. eg. `/hello-world`
 `children` | *optional* `Array<Collection>`
 `skip` | *optional* `Boolean` | If this is a parent and you don't want to generate content from it you can skip to not create nodes. Children collections will still be executed.
 
@@ -83,8 +90,8 @@ Property | Type | Description
 
 Property | Example
 ---|---
-`ref` | `db.collection('topics').where('active', '==', true)`
-`ref` in child | `(parentDoc) => { return parentDoc.ref.collection('posts').limit(parentDoc.data.showLast || 10) }`
+`ref` | `(db) => { return db.collection('topics').where('active', '==', true) }`
+`ref` in child | `(db, parentDoc) => { return parentDoc.ref.collection('posts').limit(parentDoc.data.showLast || 10) }`
 `slug` | `(doc, slugify) => { return '/topics/' + slugify(doc.data.title)' }`
 `children` | `[...]`
 `skip`| true "**Must have specified children then**"
