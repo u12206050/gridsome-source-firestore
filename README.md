@@ -2,11 +2,16 @@
 
 Gridsome Source Plugin to load data from Firebase's Firestore
 
+  * Reference fields of collections included get automatically attached as Graphql References
+
   * Image urls on fields within documents are downloaded and optimized by Gridsome.
 
   * Load collections and their sub-collections and access them via `_parent` and the `belongsTo` property
 
   * Live data updates from Firestore while you develop! `debug: true`
+
+[Example](https://github.com/u12206050/gridsome-firestore-starter)
+[Demo](https://gridsome-firestore-source.netlify.com/)
 
 ## BREAKING CHANGES
 
