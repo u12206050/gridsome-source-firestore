@@ -1,3 +1,7 @@
+1.0.0 QUEUE FOR MANAGING DOWNLOADS
+
+  * Images are downloaded in a queue instead of downloading all at once.
+
 0.9.0 BREAKING CHANGES
 
   * Now requires credentials instead of the enviroment variables.

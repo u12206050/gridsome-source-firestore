@@ -1,13 +1,6 @@
 const admin = require('firebase-admin')
 const { firestore } = require('firebase-admin')
-
-const { each } = require('lodash')
-
-const https = require('https')
-const fs = require('fs')
-const path = require('path')
-
-const ROOT = process.cwd()
+const file = require('./file.js')
 
 const ISDEV = process.env.NODE_ENV === 'development'
 
@@ -18,25 +11,6 @@ function docData(doc, parent = null) {
     ref: doc.ref,
     parent: parent,
   }
-}
-
-function getFilename(url){
-  return url.replace(/%2F/g, '/').split('/').pop().replace(/\#(.*?)$/, '').replace(/\?(.*?)$/, '');
-}
-
-function downloadImage(url, image_path) {
-  return new Promise((resolve, reject) => {
-    const file = fs.createWriteStream(image_path);
-    const request = https.get(url, (response) => {
-      response.pipe(file);
-      file.on('finish', () => {
-        file.close(resolve);
-      });
-    }).on('error', (err) => {
-      fs.unlink(dest);
-      throw new Error(err.message);
-    });
-  })
 }
 
 class FirestoreSource {
@@ -196,20 +170,15 @@ class FirestoreSource {
   }
 
   async downloadImages() {
-    const STATIC_DIR = path.join(ROOT, this.imageDirectory)
-
-    if (!fs.existsSync(STATIC_DIR)) fs.mkdirSync(STATIC_DIR)
+    file.createDirectory(this.imageDirectory)
 
     await Object.keys(this.images).map(async (id) => {
-      const url = this.images[id]
+      const { filename, url, filepath } = this.images[id]
 
-      let fileName = getFilename(url)
-      const filePath = path.join(STATIC_DIR, fileName)
-
-      if (!fs.existsSync(filePath)) {
-        await downloadImage(url, filePath)
-        this.verbose && console.log(`Downloaded ${fileName}`)
-      } else this.verbose && console.log(`${fileName} already exists`)
+      if (!file.exists(filepath)) {
+        await file.download(url, filepath)
+        ISDEV && console.log(`Downloaded ${filename}`)
+      } else ISDEV && console.log(`${filename} already exists`)
     })
 
     this.loadImages = false
@@ -237,12 +206,18 @@ class FirestoreSource {
     switch (typeof field) {
       case "string":
         if (this.images && field.match(/^https:\/\/.*\/.*\.(jpg|png|svg|gif|jpeg)($|\?)/i)) {
-          const id = this.store.makeUid(getFilename(field))
-          if (!this.images[id]) this.images[id] = field
+          const filename = file.getFilename(field)
+          const id = this.store.makeUid(field)
+          const filepath = file.getFullPath(this.imageDirectory, filename)
+          if (!this.images[id]) this.images[id] = {
+            filename,
+            url: field,
+            filepath
+          }
 
           this.loadImages = true
 
-          return path.join(ROOT, this.imageDirectory, getFilename(field))
+          return filepath
         }
       case "number":
       case "boolean": return field
