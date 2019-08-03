@@ -96,7 +96,7 @@ Property | Type | Description
 Property | Example
 ---|---
 `ref` | `(db) => { return db.collection('topics').where('active', '==', true) }`
-`ref` in child | `(db, parentDoc) => { return parentDoc.ref.collection('posts').limit(parentDoc.data.showLast || 10) }`
+`ref` in child | `(db, parentDoc) => { return parentDoc.ref.collection('posts').limit(parentDoc.data.showLast \|\| 10) }`
 `slug` | `(doc, slugify) => { return '/topics/' + slugify(doc.data.title)' }`
 `children` | `[...]`
 `skip`| true "**Must have specified children then**"
