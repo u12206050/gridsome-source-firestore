@@ -1,6 +1,6 @@
 {
   "name": "gridsome-source-firestore",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Gridsome Source Plugin to load data from Firebase's Firestore",
   "main": "index.js",
   "repository": {
@@ -21,7 +21,7 @@
   },
   "homepage": "https://github.com/u12206050/gridsome-source-firestore#readme",
   "dependencies": {
-    "firebase-admin": "^7.3.0",
+    "firebase-admin": "^8.3.0",
     "queue": "^6.0.1"
   }
 }

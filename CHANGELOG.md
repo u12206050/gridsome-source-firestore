@@ -1,3 +1,5 @@
+1.1.0 UPDATED FIREBASE-ADMIN
+
 1.0.0 QUEUE FOR MANAGING DOWNLOADS
 
   * Images are downloaded in a queue instead of downloading all at once.
