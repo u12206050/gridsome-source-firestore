@@ -1,3 +1,5 @@
+1.1.1 Renamed deprecated Gridsome method addContentType to addCollection
+
 1.1.0 UPDATED FIREBASE-ADMIN
 
 1.0.0 QUEUE FOR MANAGING DOWNLOADS
