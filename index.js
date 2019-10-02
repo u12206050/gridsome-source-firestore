@@ -70,7 +70,7 @@ class FirestoreSource {
   }
 
   async processCollections(collections, parentDoc = null) {
-    const { slugify, addContentType, getContentType, createReference } = this.store
+    const { slugify, addCollection, getContentType, createReference } = this.store
 
     await Promise.all(collections.map(async (colDef) => {
 
@@ -97,7 +97,7 @@ class FirestoreSource {
         this.verbose && console.log(`Creating content type for ${cName} with ${docs.length} nodes`)
 
         if (!this.cTypes[cName]) {
-          this.cTypes[cName] = addContentType({
+          this.cTypes[cName] = addCollection({
             typeName: cName
           })
         }
