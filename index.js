@@ -146,7 +146,7 @@ class FirestoreSource {
 
       const node = this.createNode(_d, slug, parentDoc)
 
-      if (cType.getNode(_d.id)) cType.updateNode(node)
+      if (cType.getNodeById(_d.id)) cType.updateNode(node)
       else cType.addNode(node)
     }
 
