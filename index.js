@@ -77,7 +77,7 @@ class FirestoreSource {
       if (typeof colDef.ref !== 'function') throw new Error('Ref should be callback instead. fn(db, parentDoc?)')
       const ref = colDef.ref(this.db, parentDoc)
 
-      const cName = this.typeName(ref._queryOptions.collectionId, ref._queryOptions.parentPath.segments)
+      const cName = colDef.name || this.typeName(ref._queryOptions.collectionId, ref._queryOptions.parentPath.segments)
       this.verbose && console.log(`Fetching ${cName}`)
 
       const docs = await ref.get().then(snap => {

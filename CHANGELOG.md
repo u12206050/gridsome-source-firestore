@@ -1,3 +1,6 @@
+1.2.0 Added `name` attribute to collection to use as name in GraphQL instead of the default which is the collection name from Firestore.
+  [#10](https://github.com/u12206050/gridsome-source-firestore/issues/10)
+
 1.1.1 Renamed deprecated Gridsome method addContentType to addCollection
 
 1.1.0 UPDATED FIREBASE-ADMIN

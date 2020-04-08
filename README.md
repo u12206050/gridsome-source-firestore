@@ -54,6 +54,7 @@ module.exports = {
         imageDirectory: 'fg_images', // Default /fg_images
         collections: [
           {
+            // name: Topics, // Uncomment and use only when needed.
             ref: (db) => {
               return db.collection('topics')
             },
@@ -86,6 +87,7 @@ module.exports = {
 
 Property | Type | Description
 ---|---|---
+`name` | *optional* `Stirng` | Under the hood these names are used to link relationships. So only set the name manually if you are using the same Firestore collection multiple times.
 `ref` | `Fn<Firestore, Document>` | Return `FirestoreReference` Optionally with filters, limits, order by etc. A callback function with the arguments `db` and `parentDoc` document as argument.
 `slug` | *optional* `String`, `Fn<Document>:String` | Default is `slug` field. Otherwise name the field on the document to use. If `Function`: Callback function on each document. Return the value of the slug. eg. `/hello-world`
 `children` | *optional* `Array<Collection>`
